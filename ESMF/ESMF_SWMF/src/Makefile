@@ -15,15 +15,12 @@ INCL_EXTRA = ${ESMF_F90COMPILEPATHS}
 # The executable
 EXE = ${BINDIR}/ESMF_SWMF.exe
 
-# object files which need to be compiled into the executable.
+# Object files which need to be compiled into the executable.
 OBJECTS = \
-	ESMF_driver.o \
-	ESMFSWMF_variables.o \
-	ESMF_grid_comp.o \
-	SWMF_grid_comp.o \
-	IPE_grid_comp.o \
-	RIM_grid_comp.o \
-	IPERIM_coupler.o
+        SWMF_driver.o \
+        SWMF_shared.o \
+        IPE_grid_comp.o \
+        RIM_grid_comp.o
 
 # Dependencies:
 DEPEND:
@@ -35,11 +32,30 @@ EXE: DEPEND
 	@echo '${EXE} has been brought up to date'
 	@echo ' '
 
-# build the executable.
-$(EXE): $(OBJECTS)
-	${LINK.f90} -o ${EXE} $(OBJECTS) \
-		${ESMF_F90LINKPATHS} $(ESMF_F90ESMFLINKLIBS) \
-		-L${LIBDIR} -lSWMF ${LflagMpi}
+# General rules
+.F90.o:
+	${COMPILE.f90} -c -DsysLinux -Dcompifort ${Cflag2} $<
+
+# Create the library for NUOPC interface
+LIB: ${OBJECTS}
+	${AR} ${LIBDIR}/libSWMF_nuopc.a ${OBJECTS}
+
+# Build the executable.
+$(EXE): LIB 
+	@echo 'application:' > esmxBuild.yaml
+	@echo '  disable_comps: ESMX_Data' >> esmxBuild.yaml
+	@echo '  link_paths: ${LIBDIR}' >> esmxBuild.yaml
+	@echo '  link_module_paths: ${INCLDIR}' >> esmxBuild.yaml
+	@echo '  link_libraries: SWMF' >> esmxBuild.yaml
+	@echo '  exe_name: SWMF_NUOPC.exe' >> esmxBuild.yaml
+	@echo 'components:' >> esmxBuild.yaml
+	@echo '  swmf:' >> esmxBuild.yaml
+	@echo '    build_type: none' >> esmxBuild.yaml
+	@echo '    install_prefix: ${DIR}' >> esmxBuild.yaml
+	@echo '    include_dir: share/include' >> esmxBuild.yaml
+	@echo '    fort_module: swmf_driver.mod' >> esmxBuild.yaml
+	@echo '    libraries: libSWMF_nuopc.a' >> esmxBuild.yaml
+	${ESMF_APPSDIR}/ESMX_Builder --prefix=${DIR} --verbose
 
 clean: cleanfiles
 
