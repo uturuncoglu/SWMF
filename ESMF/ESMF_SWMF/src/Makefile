@@ -17,8 +17,8 @@ EXE = ${BINDIR}/ESMF_SWMF.exe
 
 # Object files which need to be compiled into the executable.
 OBJECTS = \
-        SWMF_driver.o \
         SWMF_shared.o \
+        SWMF_grid_comp.o \
         IPE_grid_comp.o \
         RIM_grid_comp.o
 
@@ -33,12 +33,14 @@ EXE: DEPEND
 	@echo ' '
 
 # General rules
-.F90.o:
+.f90.o:
 	${COMPILE.f90} -c -DsysLinux -Dcompifort ${Cflag2} $<
 
 # Create the library for NUOPC interface
 LIB: ${OBJECTS}
-	${AR} ${LIBDIR}/libSWMF_nuopc.a ${OBJECTS}
+	${AR} ${LIBDIR}/libSWMF_nuopc.a SWMF_shared.o SWMF_grid_comp.o 
+	${AR} ${LIBDIR}/libIPE_nuopc.a SWMF_shared.o IPE_grid_comp.o 
+	${AR} ${LIBDIR}/libRIM_nuopc.a SWMF_shared.o RIM_grid_comp.o 
 
 # Build the executable.
 $(EXE): LIB 
@@ -53,8 +55,26 @@ $(EXE): LIB
 	@echo '    build_type: none' >> esmxBuild.yaml
 	@echo '    install_prefix: ${DIR}' >> esmxBuild.yaml
 	@echo '    include_dir: share/include' >> esmxBuild.yaml
-	@echo '    fort_module: swmf_driver.mod' >> esmxBuild.yaml
+	@echo '    fort_module: swmf_grid_comp.mod' >> esmxBuild.yaml
 	@echo '    libraries: libSWMF_nuopc.a' >> esmxBuild.yaml
+	@echo '    link_paths: ${ESMF_LIBSDIR}' >> esmxBuild.yaml
+	@echo '    link_libraries: esmf SWMF' >> esmxBuild.yaml
+	@echo '  ipe:' >> esmxBuild.yaml
+	@echo '    build_type: none' >> esmxBuild.yaml
+	@echo '    install_prefix: ${DIR}' >> esmxBuild.yaml
+	@echo '    include_dir: share/include' >> esmxBuild.yaml
+	@echo '    fort_module: ipe_grid_comp.mod' >> esmxBuild.yaml
+	@echo '    libraries: libIPE_nuopc.a' >> esmxBuild.yaml
+	@echo '    link_paths: ${ESMF_LIBSDIR}' >> esmxBuild.yaml
+	@echo '    link_libraries: esmf' >> esmxBuild.yaml
+	@echo '  rim:' >> esmxBuild.yaml
+	@echo '    build_type: none' >> esmxBuild.yaml
+	@echo '    install_prefix: ${DIR}' >> esmxBuild.yaml
+	@echo '    include_dir: share/include' >> esmxBuild.yaml
+	@echo '    fort_module: rim_grid_comp.mod' >> esmxBuild.yaml
+	@echo '    libraries: libRIM_nuopc.a' >> esmxBuild.yaml
+	@echo '    link_paths: ${ESMF_LIBSDIR}' >> esmxBuild.yaml
+	@echo '    link_libraries: esmf' >> esmxBuild.yaml
 	${ESMF_APPSDIR}/ESMX_Builder --prefix=${DIR} --verbose
 
 clean: cleanfiles
