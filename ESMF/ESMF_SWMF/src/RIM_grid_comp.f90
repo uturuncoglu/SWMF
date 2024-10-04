@@ -32,6 +32,7 @@ module RIM_grid_comp
   use NUOPC_Model, only: model_label_Finalize => label_Finalize
 
   use SWMF_shared, only: ChkErr
+  use SWMF_shared, only: configType, exchType
 
   implicit none
   private
@@ -56,17 +57,7 @@ module RIM_grid_comp
   ! Private module data
   !-----------------------------------------------------------------------------
 
-  ! Data type for model configuration
-  type configType
-     integer :: debugLevel
-  end type configType
   type(configType) :: config
-
-  ! Data type for exchange fields
-  type exchType
-     type(ESMF_Field)   :: field
-     character(len=4)   :: shortName
-  end type exchType
   type(exchType) :: importFields(2)
 
   character(len=*), parameter :: modName = "(RIM_grid_comp)"

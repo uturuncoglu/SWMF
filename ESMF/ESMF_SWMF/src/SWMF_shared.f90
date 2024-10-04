@@ -5,6 +5,7 @@ module SWMF_shared
   !-----------------------------------------------------------------------------
 
   use ESMF, only: ESMF_LogFoundError, ESMF_LOGERR_PASSTHRU
+  use ESMF, only: ESMF_Field
 
   implicit none
   private
@@ -14,6 +15,25 @@ module SWMF_shared
   !-----------------------------------------------------------------------------
 
   public :: ChkErr
+
+  !-----------------------------------------------------------------------------
+  ! Public module data
+  !-----------------------------------------------------------------------------
+
+  ! Data type for model configuration
+  type configType
+     integer :: debugLevel
+  end type configType
+
+  public :: configType
+
+  ! Data type for exchange fields
+  type exchType
+     type(ESMF_Field)   :: field
+     character(len=4)   :: shortName
+  end type exchType
+
+  public exchType
 
   !-----------------------------------------------------------------------------
   ! Private module data
