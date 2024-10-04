@@ -217,7 +217,7 @@ contains
     integer :: mpiCommunicator
     logical :: isSet, isPresent
     character(len=ESMF_MAXSTR) :: cvalue, msg
-    real(ESMF_KIND_R8), pointer :: lon1d(:), lat1d(:)
+    real(ESMF_KIND_R8), pointer :: Lon_I(:), Lat_I(:)
     character(len=*), parameter :: subname = trim(modName)//':(InitializeRealize) '
     !---------------------------------------------------------------------------
 
@@ -267,27 +267,28 @@ contains
 
     ! Fill longitude
     call ESMF_GridGetCoord(grid, coordDim=1, staggerloc=ESMF_STAGGERLOC_CORNER, &
-      farrayPtr=lon1d, rc=rc)
+      farrayPtr=Lon_I, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     do i = 1, nLon
-       lon1d(i) = (i-1)*(360.0d0/(nLon-1))-180.0d0
+       Lon_I(i) = (i-1)*(360.0d0/(nLon-1))-180.0d0
     end do
-    nullify(lon1d)
+    nullify(Lon_I)
 
     ! Fill latitude
     call ESMF_GridGetCoord(grid, coordDim=2, staggerloc=ESMF_STAGGERLOC_CORNER, &
-      farrayPtr=lat1d, rc=rc)
+      farrayPtr=Lat_I, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    minLat = lbound(lat1d, dim=1)
-    maxLat = ubound(lat1d, dim=1)
+    minLat = lbound(Lat_I, dim=1)
+    maxLat = ubound(Lat_I, dim=1)
 
     do i = minlat, maxlat
-       lat1d(i) = (i-1)*(180.0d0/(nLat-1))-90.0d0
+       Lat_I(i) = (i-1)*(180.0d0/(nLat-1))-90.0d0
     end do
-    nullify(lat1d)
+    nullify(Lat_I)
 
+    ! Output grid for debug purpose
     if (config%debugLevel > 5) then
        call ESMF_GridWriteVTK(grid, staggerLoc=ESMF_STAGGERLOC_CORNER, &
          filename="RIM_grid_corner", rc=rc)
@@ -306,7 +307,7 @@ contains
        if (NUOPC_IsConnected(importState, fieldName=trim(importFields(n)%shortName))) then
           ! Create field
           importFields(n)%field = ESMF_FieldCreate(grid, arrayspec=arraySpec, &
-            staggerloc=ESMF_STAGGERLOC_CORNER, name=trim(importFields(i)%shortName), rc=rc)
+            staggerloc=ESMF_STAGGERLOC_CORNER, name=trim(importFields(n)%shortName), rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
           call ESMF_LogWrite(trim(subname)//" Field = "//trim(importFields(n)%shortName)// &
@@ -406,8 +407,6 @@ contains
 
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
-
-
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 

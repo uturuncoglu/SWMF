@@ -53,7 +53,7 @@ module IPE_grid_comp
 
   private :: InitializeAdvertise ! Advertise the fields that can be passed
   private :: InitializeRealize   ! Realize the list of fields that will be exchanged
-  private :: UpdateExportState   ! Updates export state
+  private :: ModelExport         ! Updates export state
   private :: ModelAdvance        ! Advance the model
   private :: ModelFinalize       ! Finalize the model 
 
@@ -250,9 +250,10 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
+    type(ESMF_VM) :: vm
     type(ESMF_Grid) :: grid
     type(ESMF_ArraySpec) :: arraySpec
-    integer :: i, n
+    integer :: i, n, petCount, Istr, Iend
     logical :: isPresent, isSet
     character(len=ESMF_MAXSTR) :: cvalue, msg    
     character(len=*), parameter :: subname = trim(modName)//':(InitializeRealize) '
@@ -260,6 +261,16 @@ contains
 
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+    !------------------
+    ! Query component
+    !------------------
+
+    call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    call ESMF_VMGet(vm, petCount=petCount, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !------------------
     ! Read configuration
@@ -282,8 +293,8 @@ contains
 
     ! Create Lon-Lat grid where -180<=Lon<=180-dLon, -90<=Lat<=90
     grid = ESMF_GridCreateNoPeriDim(maxIndex=[nLon-1, nLat-1], &
-      coordDep1=[1], coordDep2=[2], coordSys=ESMF_COORDSYS_CART, &
-      name="dynamo grid", rc=rc)
+      regDecomp=[1, petCount], coordDep1=[1], coordDep2=[2], &
+      coordSys=ESMF_COORDSYS_CART, name="IPE grid", rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_GridAddCoord(grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
@@ -297,18 +308,19 @@ contains
     do i = 1, nLon
        Lon_I(i) = (i-1)*(360.0d0/(nLon-1))-180.0d0
     end do
-    nullify(Lon_I)
 
     ! Fill latitude, nonuniform latitude grid
     call ESMF_GridGetCoord(grid, coordDim=2, staggerloc=ESMF_STAGGERLOC_CORNER, &
       farrayPtr=Lat_I, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    Lat_I = LatIpe_I
-    nullify(Lat_I)
+    Istr = lbound(Lat_I, dim=1)
+    Iend = ubound(Lat_I, dim=1)
+    Lat_I(:) = LatIpe_I(Istr:Iend)
 
+    ! Output grid for debug purpose
     if (config%debugLevel > 5) then
-       call ESMF_GridWriteVTK(grid, staggerLoc=ESMF_STAGGERLOC_CORNER, &
+       call ESMF_GridWrite(grid, staggerLoc=ESMF_STAGGERLOC_CORNER, &
          filename="IPE_grid_corner", rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end if
@@ -325,7 +337,7 @@ contains
        if (NUOPC_IsConnected(exportState, fieldName=trim(exportFields(n)%shortName))) then
           ! Create field
           exportFields(n)%field = ESMF_FieldCreate(grid, arrayspec=arraySpec, &
-            staggerloc=ESMF_STAGGERLOC_CORNER, name=trim(exportFields(i)%shortName), rc=rc)
+            staggerloc=ESMF_STAGGERLOC_CORNER, name=trim(exportFields(n)%shortName), rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
           call ESMF_LogWrite(trim(subname)//" Field = "//trim(exportFields(n)%shortName)// &
@@ -386,7 +398,7 @@ contains
     ! Update fields on export state
     !------------------
 
-    call UpdateExportState(gcomp, rc)
+    call ModelExport(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_LogWrite(trim(subname)//' done', ESMF_LOGMSG_INFO)
@@ -413,7 +425,7 @@ contains
     ! Update export state, based on linear function depends on coupling interval
     !------------------
 
-    call UpdateExportState(gcomp, rc)
+    call ModelExport(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return    
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
@@ -442,7 +454,7 @@ contains
 
   !=============================================================================
 
-  subroutine UpdateExportState(gcomp, rc)
+  subroutine ModelExport(gcomp, rc)
 
     ! Updates export state of the model component
     ! input/output variables
@@ -452,9 +464,10 @@ contains
     ! local variables
     type(ESMF_State) :: exportState
     integer :: n, i, j
+    integer :: Istr, Iend, Jstr, Jend
     logical, save :: firstTime = .true.
     real(ESMF_KIND_R8), pointer :: Ptr_II(:,:)
-    character(len=*), parameter :: subname = trim(modName)//':(UpdateExportState) '
+    character(len=*), parameter :: subname = trim(modName)//':(ModelExport) '
     !---------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -476,13 +489,20 @@ contains
        call ESMF_FieldGet(exportFields(n)%field, farrayPtr=Ptr_II, rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+       ! Get dimension extents
+       Istr = lbound(Ptr_II, dim=1)
+       Iend = ubound(Ptr_II, dim=1)
+       Jstr = lbound(Ptr_II, dim=2)
+       Jend = ubound(Ptr_II, dim=2)
+       print*, "Istr, Iend, Jstr, Jend = ", Istr, Iend, Jstr, Jend
+
        if (firstTime) then ! Data initialization
           ! Fill pointer with scalar data
           select case(trim(exportFields(n)%shortName))
           case('Hall')
-             Ptr_II = FieldTest_V(1)
+             Ptr_II(Istr:Iend,Jstr:Jend) = FieldTest_V(1)
           case('Ped')
-             Ptr_II = FieldTest_V(2)
+             Ptr_II(Istr:Iend,Jstr:Jend) = FieldTest_V(2)
           case default
              call ESMF_LogWrite(subname//' unknown field '// &
                trim(exportFields(n)%shortName), ESMF_LOGMSG_ERROR)
@@ -491,8 +511,8 @@ contains
           end select
 
           ! Add coordinate dependence
-          do j = 1, nLat
-             do i = 1, nLon
+          do j = Jstr, Jend
+             do i = Istr, Iend
                 Ptr_II(i,j) = Ptr_II(i,j)+CoordCoefTest*abs(Lon_I(i))*(90.0d0-abs(Lat_I(j)))
              end do
           end do
@@ -510,6 +530,6 @@ contains
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 
-  end subroutine UpdateExportState
+  end subroutine ModelExport
 
 end module IPE_grid_comp
