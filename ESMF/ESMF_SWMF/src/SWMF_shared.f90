@@ -5,7 +5,12 @@ module SWMF_shared
   !-----------------------------------------------------------------------------
 
   use ESMF, only: ESMF_LogFoundError, ESMF_LOGERR_PASSTHRU
-  use ESMF, only: ESMF_Field
+  use ESMF, only: ESMF_Grid, ESMF_Field, ESMF_Array, ESMF_ArraySet
+  use ESMF, only: ESMF_ArrayBundle, ESMF_ArrayBundleCreate, ESMF_ArrayBundleDestroy
+  use ESMF, only: ESMF_ArrayBundleAdd, ESMF_ArrayBundleWrite
+  use ESMF, only: ESMF_GridGetCoord, ESMF_LogWrite
+  use ESMF, only: ESMF_STAGGERLOC_CORNER, ESMF_LOGMSG_INFO, ESMF_SUCCESS
+  use ESMF, only: ESMF_KIND_R8
 
   implicit none
   private
@@ -23,6 +28,7 @@ module SWMF_shared
   ! Data type for model configuration
   type configType
      integer :: debugLevel
+     logical :: doTest
   end type configType
 
   public :: configType
@@ -34,6 +40,13 @@ module SWMF_shared
   end type exchType
 
   public exchType
+
+  ! Field values and coordinate coefficients for testing
+  real(ESMF_KIND_R8), public, parameter :: FieldTest_V(2) = [3.0d0, 5.0d0]
+  real(ESMF_KIND_R8), public, parameter :: CoordCoefTest = 0.1d0
+
+  ! Change of Hall field during run
+  real(ESMF_KIND_R8), public, parameter:: dHallPerDtTest = 0.4d0  
 
   !-----------------------------------------------------------------------------
   ! Private module data

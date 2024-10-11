@@ -36,6 +36,7 @@ module IPE_grid_comp
 
   use SWMF_shared, only: ChkErr
   use SWMF_shared, only: configType, exchType
+  use SWMF_shared, only: FieldTest_V, CoordCoefTest, dHallPerDtTest
 
   implicit none
   private
@@ -90,13 +91,6 @@ module IPE_grid_comp
      44.9776, 48.0138 ,  51.0045,  53.9323,  56.7835,  59.5484,  62.2208, &
      64.7977, 67.2793 ,  69.6682,  71.9690,  74.1877,  76.3318,  78.4095, &
      80.4296, 82.4013 ,  84.3344,  86.2386,  88.1238,  90.0000 ]
-
-  ! Field values and coordinate coefficients for testing
-  real(ESMF_KIND_R8), parameter :: FieldTest_V(2) = [3.0d0, 5.0d0]
-  real(ESMF_KIND_R8), parameter :: CoordCoefTest = 0.1d0
-
-  ! Change of Hall field during run
-  real(ESMF_KIND_R8), parameter:: dHallPerDtTest = 0.4d0
 
   ! Coupling frequency
   real(ESMF_KIND_R8) :: couplingFreq
@@ -253,7 +247,9 @@ contains
     type(ESMF_VM) :: vm
     type(ESMF_Grid) :: grid
     type(ESMF_ArraySpec) :: arraySpec
-    integer :: i, n, petCount, Istr, Iend
+    integer :: petCount
+    integer :: i, n
+    integer :: Istr, Iend, Jstr, Jend
     logical :: isPresent, isSet
     character(len=ESMF_MAXSTR) :: cvalue, msg    
     character(len=*), parameter :: subname = trim(modName)//':(InitializeRealize) '
@@ -284,7 +280,7 @@ contains
     else
        config%debugLevel = 0
     end if
-    write(msg, fmt='(A,I2)') trim(subname)//' : debugLevel = ', config%debugLevel
+    write(msg, fmt='(A,I2)') trim(subname)//': debugLevel = ', config%debugLevel
     call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
 
     !------------------
@@ -305,7 +301,10 @@ contains
       farrayPtr=Lon_I, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    do i = 1, nLon
+    Istr = lbound(Lon_I, dim=1)
+    Iend = ubound(Lon_I, dim=1)
+    
+    do i = Istr, Iend
        Lon_I(i) = (i-1)*(360.0d0/(nLon-1))-180.0d0
     end do
 
@@ -313,16 +312,20 @@ contains
     call ESMF_GridGetCoord(grid, coordDim=2, staggerloc=ESMF_STAGGERLOC_CORNER, &
       farrayPtr=Lat_I, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    
+    Jstr = lbound(Lat_I, dim=1)
+    Jend = ubound(Lat_I, dim=1)
 
-    Istr = lbound(Lat_I, dim=1)
-    Iend = ubound(Lat_I, dim=1)
-    Lat_I(:) = LatIpe_I(Istr:Iend)
+    Lat_I(:) = LatIpe_I(Jstr:Jend)
 
-    ! Output grid for debug purpose
+    ! Print out coordinate information for debugging
     if (config%debugLevel > 5) then
-       call ESMF_GridWrite(grid, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-         filename="IPE_grid_corner", rc=rc)
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       write(msg, fmt='(A,2F10.3)') trim(subname)//': Lon min, max = ', &
+         minval(Lon_I), maxval(Lon_I)
+       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+       write(msg, fmt='(A,2F10.3)') trim(subname)//': Lat min, max = ', &
+         minval(Lat_I), maxval(Lat_I)
+       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
     end if
 
     !------------------
@@ -340,7 +343,7 @@ contains
             staggerloc=ESMF_STAGGERLOC_CORNER, name=trim(exportFields(n)%shortName), rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-          call ESMF_LogWrite(trim(subname)//" Field = "//trim(exportFields(n)%shortName)// &
+          call ESMF_LogWrite(trim(subname)//": Field = "//trim(exportFields(n)%shortName)// &
             " is connected using grid", ESMF_LOGMSG_INFO)
 
           ! Realize field 
@@ -351,7 +354,7 @@ contains
           call ESMF_StateRemove(exportState, (/ trim(exportFields(n)%shortName) /), rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-          call ESMF_LogWrite(trim(subname)// " Field = "// trim(exportFields(n)%shortName)// &
+          call ESMF_LogWrite(trim(subname)// ": Field = "// trim(exportFields(n)%shortName)// &
             " is not connected and removed from export state.", ESMF_LOGMSG_INFO)
        end if
     end do
@@ -426,7 +429,7 @@ contains
     !------------------
 
     call ModelExport(gcomp, rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return    
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 
@@ -467,6 +470,7 @@ contains
     integer :: Istr, Iend, Jstr, Jend
     logical, save :: firstTime = .true.
     real(ESMF_KIND_R8), pointer :: Ptr_II(:,:)
+    character(len=ESMF_MAXSTR) :: msg    
     character(len=*), parameter :: subname = trim(modName)//':(ModelExport) '
     !---------------------------------------------------------------------------
 
@@ -494,7 +498,6 @@ contains
        Iend = ubound(Ptr_II, dim=1)
        Jstr = lbound(Ptr_II, dim=2)
        Jend = ubound(Ptr_II, dim=2)
-       print*, "Istr, Iend, Jstr, Jend = ", Istr, Iend, Jstr, Jend
 
        if (firstTime) then ! Data initialization
           ! Fill pointer with scalar data
@@ -517,13 +520,21 @@ contains
              end do
           end do
 
-          firstTime = .false.
+          ! Set flag to pass data initialization and move to advance routine next step
+          if (n == size(exportFields)) firstTime = .false.
+
        else ! Advance
+          ! We are only updating Hall
           select case(trim(exportFields(n)%shortName))
           case('Hall')
              Ptr_II = Ptr_II+couplingFreq*dHallPerdtTest
           end select
        end if
+
+       ! Check min and max values
+       write(msg, fmt='(A,2E12.5)') trim(subname)//': '//trim(exportFields(n)%shortName)// &
+         ' min, max = ', minval(Ptr_II), maxval(Ptr_II)
+       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
 
        nullify(Ptr_II)
     end do
