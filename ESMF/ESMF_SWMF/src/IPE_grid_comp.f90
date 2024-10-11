@@ -9,7 +9,7 @@ module IPE_grid_comp
   use ESMF, only: ESMF_GridAddCoord, ESMF_GridGetCoord
   use ESMF, only: ESMF_LogWrite, ESMF_LOGMSG_INFO, ESMF_LOGMSG_ERROR
   use ESMF, only: ESMF_VM, ESMF_VMGet, ESMF_SUCCESS
-  use ESMF, only: ESMF_MAXSTR, ESMF_METHOD_INITIALIZE
+  use ESMF, only: ESMF_INDEX_GLOBAL, ESMF_MAXSTR, ESMF_METHOD_INITIALIZE
   use ESMF, only: ESMF_State, ESMF_StateRemove, ESMF_Clock
   use ESMF, only: ESMF_COORDSYS_CART, ESMF_STAGGERLOC_CORNER
   use ESMF, only: ESMF_StateAdd, ESMF_KIND_R8, ESMF_TYPEKIND_R8
@@ -248,7 +248,7 @@ contains
     type(ESMF_Grid) :: grid
     type(ESMF_ArraySpec) :: arraySpec
     integer :: petCount
-    integer :: i, n
+    integer :: i, j, n
     integer :: Istr, Iend, Jstr, Jend
     logical :: isPresent, isSet
     character(len=ESMF_MAXSTR) :: cvalue, msg    
@@ -290,7 +290,8 @@ contains
     ! Create Lon-Lat grid where -180<=Lon<=180-dLon, -90<=Lat<=90
     grid = ESMF_GridCreateNoPeriDim(maxIndex=[nLon-1, nLat-1], &
       regDecomp=[1, petCount], coordDep1=[1], coordDep2=[2], &
-      coordSys=ESMF_COORDSYS_CART, name="IPE grid", rc=rc)
+      coordSys=ESMF_COORDSYS_CART, indexflag=ESMF_INDEX_GLOBAL, &
+      name="IPE grid", rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_GridAddCoord(grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
@@ -316,7 +317,9 @@ contains
     Jstr = lbound(Lat_I, dim=1)
     Jend = ubound(Lat_I, dim=1)
 
-    Lat_I(:) = LatIpe_I(Jstr:Jend)
+    do j = Jstr, Jend    
+       Lat_I(j) = LatIpe_I(j)
+    end do
 
     ! Print out coordinate information for debugging
     if (config%debugLevel > 5) then
