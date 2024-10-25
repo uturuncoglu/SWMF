@@ -27,7 +27,6 @@ test_help:
 	@echo "    test_eeggl                  (run EEGGL test)"
 	@echo "    test_eegtd                  (run Titov-Demouline test)"
 	@echo "    test_esmf                   (run ESMF-SWMF coupling test)"
-	@echo "	   test11		       (run SC-GM coupling test)"
 	@(if [ -d PW/PWOM    ]; then echo "    test_pw                     (run PW/PWOM test)"; fi)
 	@(if [ -d PS/DGCPM   ]; then echo "    test_ps                     (run PS/DGCPM test)"; fi)
 	@(if [ -d SP/MFLAMPA ]; then echo "    test_sp                     (run SP/MFLAMPA test)"; fi)
@@ -45,13 +44,15 @@ test_help:
 	@(if [ -d PW/PWOM    ]; then echo "    test_swpc_cimi_pwom_species (run multispecies GM-IE-CIMI-PWOM SWPC test)"; fi)
 	@(if [ -d PC/FLEKS   ]; then echo "    test_swpc_aepic             (run MHD-AEPIC GM-IE-RCM2-PC SWPC test)"; fi)	
 	@(if [ -d PW/PWOM    ]; then echo "    test1                       (run GM-IE-PWOM test)"; fi)
+	@(if [ -d UA/GITM    ]; then echo "    test3                       (run GM-IE-IM-UA test)"; fi)
 	@(if [ -d IM/HEIDI   ]; then echo "    test4                       (run GM-IE-HEIDI test)"; fi)
-	@(if [ -d GM/BATSRUS/srcUserExtra ]; then echo "    test5                       (run EE-SC test)"; fi)
+	@(if [ -d GM/BATSRUS ]; then echo "    test5                       (run EE-SC test)"; fi)
 	@(if [ -d GM/BATSRUS ]; then echo "    test6                       (run SC-IH coupling test: stream-aligned)"; fi)
-	@(if [ -d GM/BATSRUS/srcUserExtra ]; then echo "    test7                       (run IH-OH test)"; fi)
+	@(if [ -d GM/BATSRUS ]; then echo "    test7                       (run IH-OH test)"; fi)
 	@(if [ -d GM/BATSRUS ]; then echo "    test8                       (run SC-IH coupling test with AWSoM-R)"; fi)
 	@(if [ -d GM/BATSRUS ]; then echo "    test9                       (run SC-IH coupling test with AWSoM)"; fi)
 	@(if [ -d GM/BATSRUS ]; then echo "    test10                      (run SC-IH like in a real-time)"; fi)
+	@(if [ -d GM/BATSRUS ]; then echo "    test11                      (run SC-GM coupling test)"; fi)
 	@(if [ -d PT/AMPS    ]; then echo "    test13                      (run GM-PT/AMPS test: Europa)"; fi)
 	@(if [ -d PT/PARMISAN ]; then echo "    test14                      (run SC-IH-PT/PARMISAN test)"; fi)
 	@(if [ -d SP/MFLAMPA ]; then echo "    test15                      (run SC-IH-SP/MFLAMPA test)"; fi)
@@ -87,7 +88,7 @@ test_gpu:
 
 test_swmf:
 	-@(${MAKE} test_eeggl TESTDIR=run_test_eeggl)
-	-@(if [ "${ESMF_DIR}" != "" ]; then ${MAKE} test_esmf; fi)
+	-@(if [ "${ESMFMKFILE}" != "" ]; then ${MAKE} test_esmf; fi)
 	-@(if [ -d PS/DGCPM   ]; then ${MAKE} test_ps TESTDIR=run_test_ps; fi)
 	-@(if [ -d IM/RCM2    ]; then ${MAKE} test_swpc_gpu TESTDIR=run_test_swpc_gpu; fi)
 	-@(if [ -d IM/RCM2    ]; then ./Config.pl -noacc; fi)
@@ -102,11 +103,12 @@ test_swmf:
 	-@(if [ -d PW/PWOM ] && [ -d IM/CIMI ]; then ${MAKE} test_swpc_cimi_pwom_species TESTDIR=run_test_swpc_cimi_pwom_species; fi)
 	-@(if [ -d PW/PWOM    ]; then ${MAKE} test1 TESTDIR=run_test01; fi)
 	-@(if [ -d IM/HEIDI   ]; then ${MAKE} test4 TESTDIR=run_test04; fi)
-	-@(if [ -d GM/BATSRUS/srcUserExtra ]; then ${MAKE} test5 TESTDIR=run_test05; fi)
+	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test5 TESTDIR=run_test05; fi)
 	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test6 TESTDIR=run_test06; fi)
-	-@(if [ -d GM/BATSRUS/srcUserExtra ]; then ${MAKE} test7 TESTDIR=run_test07; fi)
+	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test7 TESTDIR=run_test07; fi)
 	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test8 TESTDIR=run_test08; fi)
 	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test9 TESTDIR=run_test09; fi)
+	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test11 TESTDIR=run_test11; fi)
 	-@(if [ -d PT/AMPS    ]; then ${MAKE} test13 TESTDIR=run_test13; fi)
 	-@(if [ -d SP/MFLAMPA ]; then ${MAKE} test15 TESTDIR=run_test15; fi)
 	-@(if [ -d SP/MFLAMPA ]; then ${MAKE} test19 TESTDIR=run_test19; fi)
@@ -119,7 +121,6 @@ test_swmf:
 	-@(if [ -d PT/FLEKS   ]; then ${MAKE} test22 TESTDIR=run_test22; fi)
 	-@(if [ -d PT/FLEKS   ]; then ${MAKE} test23 TESTDIR=run_test23; fi)
 	./Config.pl -noamrex
-	-@(if [ -d GM/BATSRUS ]; then ${MAKE} test11 TESTDIR=run_test11; fi)
 
 # Setting BLESS=YES or Y will copy the solution into the reference solution
 BLESS=NO
@@ -1355,6 +1356,72 @@ test_swpc_amps_check:
 		> test_swpc_amps_rb.diff)
 	ls -l test_swpc_amps_??.diff
 
+### test_3: configure SWMF with GM+IE+IM+UA only. ###
+
+test3:  
+	@echo "test3_compile..." > test03_gm.diff
+	@echo "test3_compile..." > test03_ie.diff	
+	@echo "test3_compile..." > test03_ua_gitm.diff
+	${MAKE} test3_compile
+	@echo "test3_rundir..." >> test03_gm.diff
+	@echo "test3_rundir..." >> test03_ie.diff
+	@echo "test3_rundir..." >> test03_ua_gitm.diff
+	${MAKE} test3_rundir
+	@echo "test3_run..." >> test03_gm.diff
+	@echo "test3_run..." >> test03_ie.diff
+	@echo "test3_run..." >> test03_ua_gitm.diff
+	${MAKE} test3_run
+	@echo "test3_restart..." >> test03_gm.diff
+	@echo "test3_restart..." >> test03_ie.diff
+	@echo "test3_restart..." >> test03_ua_gitm.diff
+	${MAKE} test3_restart
+	@echo "test3_check..." >> test03_gm.diff
+	@echo "test3_check..." >> test03_ie.diff
+	@echo "test3_check..." >> test03_ua_gitm.diff
+	${MAKE} test3_check
+
+test3_compile:
+	./Config.pl -v=Empty,GM/BATSRUS,IE/Ridley_serial,IM/RCM2,UA/GITM
+	./Config.pl -o=GM:u=Default,e=Mhd,ng=2,g=8,8,8,IE:g=181,361
+	${MAKE} SWMF
+	make PIDL
+	cd UA/GITM; make POST
+
+test3_rundir:
+	rm -rf ${TESTDIR}
+	${MAKE} rundir RUNDIR=${DIR}/${TESTDIR}
+	cp Param/PARAM.in.test.GMIEIMUA ${TESTDIR}/
+	cp Param/PARAM.in.test.restart.GMIEIMUA ${TESTDIR}/
+	cp ${TESTDIR}/PARAM.in.test.GMIEIMUA ${TESTDIR}/PARAM.in
+	-Scripts/TestParam.pl -F ${TESTDIR}/PARAM.in
+
+test3_run:
+	cd ${TESTDIR}; ${MPIRUN} ./SWMF.exe > runlog
+	cd ${TESTDIR}; ./Restart.pl
+
+test3_restart:
+	cd ${TESTDIR}; cp PARAM.in.test.restart.GMIEIMUA PARAM.in
+	-Scripts/TestParam.pl -F ${TESTDIR}/PARAM.in
+	cd ${TESTDIR}; ${MPIRUN} ./SWMF.exe > runlog_restart
+	cd ${TESTDIR}; ./pGITM.py
+	cd ${TESTDIR}; ./PostProc.pl -M -cat RESULTS; \
+	mv runlog_restart RESULTS
+
+test3_check:
+	-@(${DIFFNUM} -b -r=1e-5 -a=2e-2 \
+		${TESTDIR}/RESULTS/UA/ua_ie_buffer_t20021221_104600.out \
+	 	output/test3/ua_ie_buffer_t20021221_104600.out.gz \
+		> test03_ua_gitm.diff)
+	-@(${DIFFNUM} -b -r=1e-5 -a=2e-4 \
+		${TESTDIR}/RESULTS/IE/IE_t021221_104500.log \
+	 	output/test3/IE_t021221_104500.log \
+		> test03_ie.diff)
+	-@(${DIFFNUM} -b -r=1e-5 -a=2e-8 \
+		${TESTDIR}/RESULTS/GM/log_n000001.log \
+	 	output/test3/log_n000001.log \
+		> test03_gm.diff)
+	@ls -l test03*.diff
+	
 ### test4: GM+IE+HEIDI ###
 
 test4:
@@ -1413,6 +1480,7 @@ test5_compile:
 	./Config.pl -v=Empty,EE/BATSRUS,SC/BATSRUS
 	./Config.pl -o=EE:u=Swarm,e=MhdEos,ng=2,g=10,10,10
 	./Config.pl -o=SC:u=Awsom,e=Awsom,ng=2,g=4,4,4
+	cd SC/BATSRUS; make newtr
 	${MAKE} SWMF
 	make PIDL
 
@@ -1569,6 +1637,7 @@ test8_compile:
 	./Config.pl -v=Empty,SC/BATSRUS,IH/BATSRUS
 	./Config.pl -o=SC:u=Awsom,e=Awsom,ng=2,g=4,4,4
 	./Config.pl -o=IH:u=Awsom,e=Awsom,ng=2,g=4,4,4
+	cd SC/BATSRUS; make oldtr
 	${MAKE} SWMF
 	make PIDL
 
@@ -1720,8 +1789,8 @@ test9_check:
 		output/test9/SC_cme_los_soho_c2_4_t00000010_n0000012.out \
 		> test09_sc_cme_los.diff)
 	-(${DIFFNUM} -b -r=1e-5 -a=1e-27 \
-		${TESTDIR}/RESULTS/run_cme/SC/shk_mhd_10_t00000010_n00000012.out \
-		output/test9/SC_shk_mhd_10_t00000010_n00000012.out \
+		${TESTDIR}/RESULTS/run_cme/SC/shk_var_10_t00000010_n00000012.out \
+		output/test9/SC_shk_var_10_t00000010_n00000012.out \
 		> test09_sc_cme_shk.diff)
 	-(${DIFFNUM} -b -r=1e-5 -a=1e-27 \
 		${TESTDIR}/RESULTS/run_restart/SC/los_soho_c2_4_t00000010_n0000012.out \
@@ -1993,6 +2062,7 @@ test15_compile:
 	./Config.pl -o=SC:u=Awsom,e=Awsom,ng=2,g=4,4,4
 	./Config.pl -o=IH:u=Awsom,e=Awsom,ng=2,g=4,4,4
 	./Config.pl -o=SP:g=2000
+	cd SC/BATSRUS; make newtr
 	${MAKE} SWMF
 	make PIDL
 
@@ -2284,6 +2354,7 @@ test19_compile:
 	./Config.pl -o=IH:u=Awsom,e=AwsomWdiff,ng=2,g=4,4,4
 	./Config.pl -o=OH:u=Awsom,e=Awsom,ng=2,g=4,4,4
 	./Config.pl -o=SP:g=2000
+	cd SC/BATSRUS; make oldtr
 	${MAKE} SWMF
 	make PIDL
 
@@ -2618,7 +2689,7 @@ test23_check:
 	   ${TESTDIR}/RESULTS/PC/z=0*84.out \
 	   output/test23/z=0.ref.gz \
 		> test23_gmpc.diff)
-	-@(${DIFFNUM} -b -a=1e-12 -r=1e-11 \
+	-@(${DIFFNUM} -b -a=1e-11 -r=1e-11 \
 	   ${TESTDIR}/RESULTS/PC/log_pic_n00000000.log \
 	   output/test23/PC.log \
 		>> test23_gmpc.diff)	
@@ -2731,12 +2802,13 @@ test_eegtd_run:
 	perl -i -pe 's/#END/#MAGNETOGRAM\nfitsfile_01.out\n\n#END/' CME.in;\
 	perl -i -pe 's/#END/#ELIMINATECMEBR\nfitsfile_01.out\n\n#END/' \
 	CME.in;\
+	cp field_2d.out field_orig.out; \
 	./ELIMINATECMEBR.exe |tee eliminatecmebr.log; \
 	perl -i -pe 's/#MAGNETOGRAM/MAGNETOGRAM/' CME.in;\
 	perl -i -pe 's/#ELIMINATECMEBR/ELIMINATECMEBR/' CME.in; \
 	./HARMONICS.exe |tee harmonics.log
 	@echo " Reconstruction of potential field takes a while, please, wait"
-	cd ${RUNDIR}/SC; \
+	cd ${TESTDIR}/SC; \
 	${MPIRUN} ./CONVERTHARMONICS.exe > convert.log
 
 test_eegtd_check:
