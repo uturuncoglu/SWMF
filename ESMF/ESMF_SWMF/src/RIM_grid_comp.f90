@@ -262,7 +262,7 @@ contains
           config%doTest = .true.
        end if   
     end if
-    write(msg, fmt='(A,L)') trim(subname)//': doTest = ', config%doTest
+    write(msg, fmt='(A,L1)') trim(subname)//': doTest = ', config%doTest
     call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
 
     !------------------
