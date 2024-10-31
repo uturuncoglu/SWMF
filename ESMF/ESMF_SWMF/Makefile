@@ -5,11 +5,13 @@ DIFFNUM = ${SCRIPTDIR}/DiffNum.pl -BLESS=${BLESS}
 # Nothing should be done parallel in this Makefile
 .NOTPARALLEL:
 
+EXE = SWMF_NUOPC.exe
+
 help:
 	@echo "Targets:"
 	@echo "help                - this help message"
 	@echo "install             - install ESMF_SWMF"
-	@echo "EXE                 - compile ESMF_SWMF.exe"
+	@echo "EXE                 - compile ${EXE}"
 	@echo "test                - run test on 2 processors"
 	@echo "test NP=4           - run test on 4 processors"
 	@echo "test_compile        - configure and compile for test"
@@ -38,7 +40,7 @@ rundir:
 	cp input/esmxRun.yaml ${RUNDIR}/
 	cp input/fd_swmf.yaml ${RUNDIR}/
 	cp -f input/PARAM.in ${RUNDIR}/
-	cd ${RUNDIR}; ln -sf ${BINDIR}/SWMF_NUOPC.exe .
+	cd ${RUNDIR}; ln -sf ${BINDIR}/${EXE} .
 
 test:
 	@echo "test_compile..." > test_esmf.diff
@@ -58,7 +60,7 @@ test_rundir:
 	${MAKE} rundir
 
 test_run:
-	cd ${RUNDIR}; rm -f *ESMF_LogFile; ${MPIRUN} ESMF_SWMF.exe | tee runlog
+	cd ${RUNDIR}; rm -f *ESMF_LogFile; ${MPIRUN} ${EXE} | tee runlog
 	cd ${RUNDIR}; ./PostProc.pl -M RESULTS
 
 test_check:
