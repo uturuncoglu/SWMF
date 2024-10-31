@@ -13,7 +13,7 @@ ALL:  EXE
 INCL_EXTRA = ${ESMF_F90COMPILEPATHS}
 
 # The executable
-EXE = ${BINDIR}/ESMF_SWMF.exe
+EXE = ${BINDIR}/SWMF_NUOPC.exe
 
 # Object files which need to be compiled into the executable.
 OBJECTS = \
@@ -44,6 +44,7 @@ LIB: ${OBJECTS}
 
 # Build the executable.
 $(EXE): LIB 
+	rm -rf build/
 	@echo 'application:' > esmxBuild.yaml
 	@echo '  disable_comps: ESMX_Data' >> esmxBuild.yaml
 	@echo '  link_paths: ${LIBDIR}' >> esmxBuild.yaml

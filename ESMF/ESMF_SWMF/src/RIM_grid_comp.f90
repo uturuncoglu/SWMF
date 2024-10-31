@@ -424,14 +424,13 @@ contains
 
     ! local variables
     type(ESMF_Clock) :: clock
-    type(ESMF_TimeInterval) :: timeStep, currSimTime
+    type(ESMF_TimeInterval) :: currSimTime
     type(ESMF_State) :: importState
     real(ESMF_KIND_R8), pointer :: Ptr_II(:,:)
-    integer :: n, i, j
+    integer :: n, i, j, s, ms
     integer :: Istr, Iend, Jstr, Jend
     real(ESMF_KIND_R8) :: Exact_V(2)
-    real(ESMF_KIND_R8) :: couplingFreq
-    real(ESMF_KIND_R8) :: tCurrent, s, ms
+    real(ESMF_KIND_R8) :: tCurrent
     character(len=ESMF_MAXSTR) :: msg
     character(len=*), parameter :: subname = trim(modName)//':(ModelImport) '
     !---------------------------------------------------------------------------
@@ -450,13 +449,10 @@ contains
     ! Query clock 
     !------------------
 
-    call ESMF_ClockGet(clock, currSimTime=currSimTime, timeStep=timeStep, rc=rc)
+    call ESMF_ClockGet(clock, currSimTime=currSimTime, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call ESMF_TimeIntervalGet(timeStep, s_r8=couplingFreq, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    call ESMF_TimeIntervalGet(currSimTime, s_r8=s, ms_r8=ms, rc=rc)
+    call ESMF_TimeIntervalGet(currSimTime, s=s, ms=ms, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     tCurrent = s+0.001d0*ms
@@ -501,14 +497,14 @@ contains
                 select case(trim(importFields(n)%shortName))
                 case('Hall')
                     if (abs(Ptr_II(i,j)-Exact_V(1)) > 1e-10) then
-                       write(msg, fmt='(A,2I4,2F10.3,3E12.5)') trim(subname)//': '// &
+                       write(msg, fmt='(A,2I4,2F10.3,3E15.5)') trim(subname)//': '// &
                          'issue with incoming Hall at i, j, Lon, Lat, Hall, Exact, Error = ', &
                          i, j, Lon_I(i), Lat_I(j), Ptr_II(i,j), Exact_V(1), Ptr_II(i,j)-Exact_V(1)
                        call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_ERROR)
                     end if
                 case('Ped')
                     if (abs(Ptr_II(i,j)-Exact_V(2)) > 1e-10) then
-                       write(msg, fmt='(A,2I4,2F10.3,3E12.5)') trim(subname)//': '// &
+                       write(msg, fmt='(A,2I4,2F10.3,3E15.5)') trim(subname)//': '// &
                          'issue with incoming Ped  at i, j, Lon, Lat, Hall, Exact, Error = ', &
                          i, j, Lon_I(i), Lat_I(j), Ptr_II(i,j), Exact_V(2), Ptr_II(i,j)-Exact_V(2)
                        call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_ERROR)
