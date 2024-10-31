@@ -1,0 +1,41 @@
+ESMX:
+  App:
+    globalResourceControl: true
+    logKindFlag: ESMF_LOGKIND_Multi
+    logAppendFlag: false
+    logFlush: true
+    fieldDictionary: fd_swmf.yaml
+    startTime: 2000-03-21T10:45:00
+    stopTime: 2000-03-21T10:45:10
+  Driver:
+    componentList: [SWMF, IPE, RIM]
+    attributes:
+      Verbosity: low
+    runSequence: |
+      @2
+        IPE -> RIM :remapMethod=bilinear:unmappedaction=ignore:zeroregion=select:srcTermProcessing=0:termOrder:srcseq
+        RIM
+        SWMF
+        IPE
+      @
+SWMF:
+  model: swmf
+  petlist: 0-1
+  attributes: 
+    Verbosity: 0
+    Diagnostic: 0
+IPE:
+  model: ipe 
+  petlist: 0-1
+  attributes: 
+    Verbosity: 0
+    Diagnostic: 0
+    debugLevel: 10
+RIM:
+  model: rim
+  petlist: 0-1
+  attributes: 
+    Verbosity: 0
+    Diagnostic: 0
+    debugLevel: 10
+    doTest: true

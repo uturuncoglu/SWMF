@@ -7,7 +7,7 @@ module SWMF_grid_comp
   use ESMF, only: operator(+)
   use ESMF, only: ESMF_GridComp, ESMF_GridCompGet
   use ESMF, only: ESMF_LogWrite, ESMF_LOGMSG_INFO
-  use ESMF, only: ESMF_KIND_I4, ESMF_KIND_R8
+  use ESMF, only: ESMF_MAXSTR, ESMF_KIND_I4, ESMF_KIND_R8
   use ESMF, only: ESMF_SUCCESS, ESMF_LOGMSG_ERROR, ESMF_END_ABORT
   use ESMF, only: ESMF_Finalize, ESMF_METHOD_INITIALIZE
   use ESMF, only: ESMF_VM, ESMF_VMGet, ESMF_State, ESMF_Clock
@@ -156,11 +156,10 @@ contains
     type(ESMF_VM) :: vm
     type(ESMF_Time) :: startTime
     type(ESMF_TimeInterval) :: currSimTime, runDuration
-    integer :: ierr
+    integer :: s, ms, ierr
     logical :: isLastSession
     integer :: mpiCommunicator
     integer :: iStartTime(7)
-    real(ESMF_KIND_R8) :: s, ms 
     real(ESMF_KIND_R8) :: currTime, stopTime
     character(len=*), parameter :: subname = trim(modName)//':(InitializeAdvertise) '
     !---------------------------------------------------------------------------
@@ -194,18 +193,20 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Obtain the simulation time from the clock
-    call ESMF_TimeIntervalGet(currSimTime, s_r8=s, ms_r8=ms, rc=rc)
+    call ESMF_TimeIntervalGet(currSimTime, s=s, ms=ms, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     currTime = s+ms/1000.0d0
 
     ! Obtain the final simulation time from the clock
-    call ESMF_TimeIntervalGet(runDuration, s_r8=s, ms_r8=ms, rc=rc)
+    call ESMF_TimeIntervalGet(runDuration, s=s, ms=ms, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     stopTime = s+ms/1000.0d0
 
     !------------------
     ! Call SWMF initialization routine
     !------------------
+
+    isLastSession = .false.
 
     call SWMF_initialize(mpiCommunicator, iStartTime, &
       currTime, stopTime, isLastSession, ierr)
@@ -252,13 +253,11 @@ contains
 
     ! local variables
     type(ESMF_Clock) :: clock
-    type(ESMF_Time) :: currTime
-    type(ESMF_Time) :: nextTime
-    type(ESMF_TimeInterval) :: timeStep
-    integer :: ierr
+    type(ESMF_TimeInterval) :: simTime, timeStep
+    integer :: s, ms, ierr
     logical :: DoStop
-    real(ESMF_KIND_R8) :: s, ms
     real(ESMF_KIND_R8) :: tCouple, tSimSwmf
+    character(len=ESMF_MAXSTR) :: msg
     character(len=*), parameter :: subname = trim(modName)//':(ModelAdvance) '
     !---------------------------------------------------------------------------
 
@@ -272,16 +271,16 @@ contains
     call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
+    call ESMF_ClockGet(clock, CurrSimTime=SimTime, timeStep=timeStep, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !------------------
     ! Calculate simulation time
     !------------------
 
-    nextTime = currTime+timeStep
+    simTime = simTime+timeStep
 
-    call ESMF_TimeGet(nextTime, s_r8=s, ms_r8=ms, rc=rc)
+    call ESMF_TimeIntervalGet(simTime, s=s, ms=ms, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return    
 
     tCouple = s+0.001*ms
@@ -290,14 +289,15 @@ contains
     ! Run SWMF 
     !------------------
 
-    tSimSwmf = tCouple
-    !call SWMF_run('IE', tCouple, tSimSwmf, DoStop, ierr)
     call SWMF_run('**', tCouple, tSimSwmf, DoStop, ierr)
     if (ierr /= 0) then
        call ESMF_LogWrite(subname//': error in SWMF_run.', ESMF_LOGMSG_ERROR)
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
        return
     end if
+
+    write(msg, fmt='(A,F12.8)') trim(subname)//' SWMF_run returns with tSimSwmf = ', tSimSwmf
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO) 
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
 

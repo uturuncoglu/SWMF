@@ -35,9 +35,10 @@ rundir:
 	rm -rf ${RUNDIR}
 	cd ../../; ${MAKE} rundir RUNDIR=${RUNDIR}
 	cd ${RUNDIR}; rm -f SWMF.exe EIE SWMFDIR core
-	cp input/ESMF_SWMF.input ${RUNDIR}/
+	cp input/esmxRun.yaml ${RUNDIR}/
+	cp input/fd_swmf.yaml ${RUNDIR}/
 	cp -f input/PARAM.in ${RUNDIR}/
-	cd ${RUNDIR}; ln -sf ${BINDIR}/ESMF_SWMF.exe .
+	cd ${RUNDIR}; ln -sf ${BINDIR}/SWMF_NUOPC.exe .
 
 test:
 	@echo "test_compile..." > test_esmf.diff
