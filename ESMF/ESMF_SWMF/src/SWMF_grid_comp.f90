@@ -6,6 +6,12 @@ module SWMF_grid_comp
 
   ! ESMF Framework module
   use ESMF
+  use NUOPC
+
+  use NUOPC_Model, only: NUOPC_ModelGet
+  use NUOPC_Model, only: modelSS => SetServices
+  use NUOPC_Model, only: model_label_Advance => label_Advance  
+  use NUOPC_Model, only: model_label_Finalize => label_Finalize
 
   use ESMFSWMF_variables, ONLY: &
        DoRunSwmf, DoBlockAllSwmf, NameSwmfComp, &
@@ -35,14 +41,36 @@ contains
     integer, intent(out):: iError
 
     !--------------------------------------------------------------------------
+    call NUOPC_CompDerive(gComp, modelSS, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompDerive')
     call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         userRoutine=my_init, rc=iError)
-    call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_RUN, &
-         userRoutine=my_run, rc=iError)
-    call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_FINALIZE, &
-         userRoutine=my_final, rc=iError)
+         userRoutine=my_init_p0, phase=0, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompSetEntryPoint')
+    call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
+         phaseLabelList=(/"IPDv01p1"/), userRoutine=my_init, rc=iError)    
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
+          specRoutine=my_run, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Finalize, &
+         specRoutine=my_final, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
 
   end subroutine set_services
+  !============================================================================
+  subroutine my_init_p0(gComp, ImportState, ExportState, ExternalClock, iError)
+
+    type(ESMF_GridComp) :: gComp
+    type(ESMF_State) :: ImportState
+    type(ESMF_State) :: ExportState
+    type(ESMF_Clock) :: ExternalClock
+    integer, intent(out):: iError
+
+    call NUOPC_CompFilterPhaseMap(gComp, ESMF_METHOD_INITIALIZE, &
+         acceptStringList=(/"IPDv01p"/), rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompFilterPhaseMap')
+
+  end subroutine my_init_p0
   !============================================================================
   subroutine my_init(gComp, ImportState, ExportState, ExternalClock, iError)
 
@@ -112,15 +140,13 @@ contains
 
   end subroutine my_init
   !============================================================================
-  subroutine my_run(gComp, ImportState, ExportState, Clock, iError)
+  subroutine my_run(gComp, iError)
 
     type(ESMF_GridComp):: gComp
-    type(ESMF_State):: ImportState
-    type(ESMF_State):: ExportState
-    type(ESMF_Clock):: Clock
     integer, intent(out):: iError
 
     ! Access to the data
+    type(ESMF_Clock):: Clock
 
     ! Access to time
     type(ESMF_TimeInterval) :: SimTime, TimeStep
@@ -134,6 +160,10 @@ contains
     !--------------------------------------------------------------------------
     call write_log("SWMF_grid_comp:run routine called")
     iError = ESMF_FAILURE
+
+    ! Query component
+    call NUOPC_ModelGet(gComp, modelClock=Clock, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_ModelGet')
 
     ! Get the current time from the clock
     call ESMF_ClockGet(Clock, CurrSimTime=SimTime, TimeStep=TimeStep, &
@@ -170,12 +200,9 @@ contains
 
   end subroutine my_run
   !============================================================================
-  subroutine my_final(gComp, ImportState, ExportState, ExternalClock, iError)
+  subroutine my_final(gComp, iError)
 
     type(ESMF_GridComp) :: gComp
-    type(ESMF_State) :: ImportState
-    type(ESMF_State) :: ExportState
-    type(ESMF_Clock) :: ExternalClock
     integer, intent(out) :: iError
     !--------------------------------------------------------------------------
     call write_log("SWMF_finalize routine called")
