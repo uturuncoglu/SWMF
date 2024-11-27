@@ -38,9 +38,7 @@ module RIM_grid_comp
   ! Coordinate arrays
   real(ESMF_KIND_R8), pointer, save:: Lon_I(:), Lat_I(:)
 
-  integer:: MinLat = 0, MaxLat = 0
-  integer, allocatable:: iPetMap_III(:,:,:)
-  integer:: iPet = 0
+  integer:: MinLon, MaxLon, MinLat, MaxLat
 
 contains
   !============================================================================
@@ -117,10 +115,10 @@ contains
 
     type(ESMF_VM)    :: Vm
     type(ESMF_Grid)  :: Grid
-    integer          :: iComm
+    integer          :: PetCount
     type(ESMF_TimeInterval) :: SimTime, RunDuration
 
-    integer:: i
+    integer:: i, j
     !--------------------------------------------------------------------------
     call write_log("RIM_grid_comp:init_realize routine called")
     iError = ESMF_FAILURE
@@ -129,27 +127,18 @@ contains
     call ESMF_GridCompGet(gComp, vm=Vm, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompGet')
 
-    ! Obtain the MPI communicator for the VM
-    call ESMF_VMGet(Vm, mpiCommunicator=iComm, localPet=iPet, rc=iError)
+    ! Obtain the PET count for the VM
+    call ESMF_VMGet(Vm, petCount=PetCount, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('ESMF_VMGet')
 
     ! RIM grid is node based. Internally it is Colat-Lon grid, but we pretend
     ! here that it is a Lat-Lon grid, so ESMF can use it.
     ! Lon from 0 to 360-dPhi (periodic), Lat from -90 to +90
-    if(nProcSwmfComp == 1)then
-       allocate(iPetMap_III(1,1,1))
-       iPetMap_III(1,1,1) = 0
-    else
-       allocate(iPetMap_III(1,2,1))
-       iPetMap_III(1,:,1) = [ 0, 1 ]
-    end if
-
     Grid = ESMF_GridCreateNoPeriDim(maxIndex=[nLon-1, nLat-1], &
-         RegDecomp = [1, nProcSwmfComp], &
-         coordDep1=[1], coordDep2=[2], coordSys=ESMF_COORDSYS_CART, &
+         regDecomp=[1, petCount], coordDep1=[1], coordDep2=[2], &
+         coordSys=ESMF_COORDSYS_CART, indexflag=ESMF_INDEX_GLOBAL, &
          name="RIM grid", rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridCreateNoPeriDim')
-    deallocate(iPetMap_III)
 
     call ESMF_GridAddCoord(Grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridAddCoord')
@@ -164,20 +153,22 @@ contains
          staggerLoc=ESMF_STAGGERLOC_CORNER, farrayPtr=Lat_I, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 2')
 
-    MinLat = lbound(Lat_I, DIM=1); MaxLat = ubound(Lat_I, DIM=1)
-    write(*,'(a,2i4)')'RIM grid: MinLat, MaxLat=', MinLat, MaxLat
-
     ! Uniform longitude grid from -180 to 180 (to match IPE)
-    do i = 1, nLon
+    MinLon = lbound(Lon_I, dim=1)
+    MaxLon = ubound(Lon_I, dim=1)
+    write(*,'(a,2i4)')'RIM grid: Lon_I Min, Max=', MinLon, MaxLon 
+    do i = MinLon, MaxLon
        Lon_I(i) = (i-1)*(360.0/(nLon-1)) - 180
     end do
-    write(*,*)'RIM grid: Lon_I(1,2,last)=', Lon_I([1, 1, nLon])
+    write(*,*)'RIM grid: Lon_I(Min,Min+1,Max)=', Lon_I([MinLon,MinLon+1,MaxLon])
     ! Uniform latitude grid
-    do i = MinLat, MaxLat
-       Lat_I(i) = (i-1)*(180./(nLat-1)) - 90
+    MinLat = lbound(Lat_I, dim=1)
+    MaxLat = ubound(Lat_I, dim=1)
+    write(*,'(a,2i4)')'RIM grid: Lat_I Min, Max=', MinLat, MaxLat 
+    do j = MinLat, MaxLat
+       Lat_I(j) = (j-1)*(180./(nLat-1)) - 90
     end do
-    write(*,*)'RIM grid: Lat_I(Min,Min+1,Max)=', &
-         Lat_I([MinLat,MinLat+1,MaxLat])
+    write(*,*)'RIM grid: Lat_I(Min,Min+1,Max)=', Lat_I([MinLat,MinLat+1,MaxLat])
 
     ! Add fields to the RIM import state
     call add_fields(Grid, ImportState, IsFromEsmf=.true., iError=iError)
@@ -195,7 +186,6 @@ contains
 
     ! Access to the data
     type(ESMF_State):: ImportState
-    type(ESMF_State):: ExportState
     type(ESMF_Clock):: Clock
     real(ESMF_KIND_R8), pointer     :: Ptr_II(:,:)
     real(ESMF_KIND_R8), allocatable :: Data_VII(:,:,:)
@@ -218,7 +208,8 @@ contains
     iError = ESMF_FAILURE
 
     ! Query component
-    call NUOPC_ModelGet(gComp, modelClock=Clock, rc=iError)
+    call NUOPC_ModelGet(gComp, modelClock=Clock, &
+         importState=ImportState, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_ModelGet')
 
     ! Get the current time from the clock
@@ -230,7 +221,7 @@ contains
     tCurrent = iSec + 0.001*iMilliSec
 
     ! Obtain pointer to the data obtained from the ESMF component
-    allocate(Data_VII(nVarEsmf,nLon,MinLat:MaxLat), stat=iError)
+    allocate(Data_VII(nVarEsmf,MinLon:MaxLon,MinLat:MaxLat), stat=iError)
     if(iError /= 0) call my_error('allocate(Data_VII)')
 
     ! Copy fields into an array
@@ -248,7 +239,7 @@ contains
     if(DoTest)then
        write(*,*)'SWMF_GridComp shape of Ptr =', shape(Ptr_II)
        ! Do not check the poles
-       do j = MinLat, MaxLat; do i = 1, nLon
+       do j = MinLat, MaxLat; do i = MinLon, MaxLon
           ! Calculate exact solution
           Exact_V = FieldTest_V
           ! add time dependence for Hall field
@@ -269,7 +260,7 @@ contains
                Exact_V(2), Data_VII(2,i,j) - Exact_V(2)
        end do; end do
        write(*,*)'SWMF_GridComp value of Data(MidLon,MidLat)=', &
-            Data_VII(:,nLon/2,(MinLat+MaxLat)/2)
+            Data_VII(:,(MinLon+MaxLon)/2,(MinLat+MaxLat)/2)
     end if
     deallocate(Data_VII)
 

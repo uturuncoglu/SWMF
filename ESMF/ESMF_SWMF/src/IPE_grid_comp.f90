@@ -26,6 +26,7 @@ module IPE_grid_comp
   integer, parameter:: nLon=81, nLat=97 ! Default ESMF grid size
 
   ! Coordinate arrays
+  integer:: MinLon, MaxLon, MinLat, MaxLat
   real(ESMF_KIND_R8), pointer:: Lon_I(:), Lat_I(:)
 
   ! IPE dynamo grid latitudes
@@ -123,15 +124,23 @@ contains
     type(ESMF_Field):: Field
     type(ESMF_VM):: Vm
     real(ESMF_KIND_R8), pointer :: Ptr_II(:,:)
-    integer:: iVar, i, j
+    integer:: iVar, i, j, PetCount
     character(len=4):: NameField
     !--------------------------------------------------------------------------
     call write_log("IPE_grid_comp init_realize called")
     iError = ESMF_FAILURE
 
+    ! Query component
+    call ESMF_GridCompGet(gComp, vm=Vm, rc=iError)
+    if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridCompGet')
+
+    call ESMF_VMGet(Vm, petCount=PetCount, rc=iError)
+    if(iError /= ESMF_SUCCESS)call my_error('ESMF_VMGet')
+
     ! Create Lon-Lat grid where -180<=Lon<=180-dLon, -90<=Lat<=90
     Grid = ESMF_GridCreateNoPeriDim(maxIndex=[nLon-1, nLat-1], &
-         coordDep1=[1], coordDep2=[2], coordSys=ESMF_COORDSYS_CART, &
+         regDecomp=[1, petCount], coordDep1=[1], coordDep2=[2], &
+         coordSys=ESMF_COORDSYS_CART, indexflag=ESMF_INDEX_GLOBAL, &
          name="dynamo grid", rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridCreateNoPeriDim')
 
@@ -147,16 +156,22 @@ contains
     call ESMF_GridGetCoord(Grid, CoordDim=2, &
          staggerLoc=ESMF_STAGGERLOC_CORNER, farrayPtr=Lat_I, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 2')
-
     write(*,*)'IPE size(Lat_I)=', size(Lat_I)
+
     ! Uniform longitude grid from -180 to 180
-    do i = 1, nLon
+    MinLon = lbound(Lon_I, dim=1)
+    MaxLon = ubound(Lon_I, dim=1)
+    do i = MinLon, MaxLon
        Lon_I(i) = (i-1)*(360.0/(nLon-1)) - 180
     end do
-    write(*,*)'IPE grid: Lon_I(1,2,last)=', Lon_I([1, 2, nLon])
+    write(*,*)'IPE grid: Lon_I(MinLon,MinLon+1,MaxLon)=', Lon_I([MinLon, MinLon+1, MaxLon])
     ! Nonuniform latitude grid
-    Lat_I = LatIpe_I
-    write(*,*)'IPE grid: Lat_I(1,2,last)=', Lat_I([1, 2, nLat])
+    MinLat = lbound(Lat_I, dim=1)
+    MaxLat = ubound(Lat_I, dim=1)
+    do j = MinLat, MaxLat
+       Lat_I(j) = LatIpe_I(j)
+    end do
+    write(*,*)'IPE grid: Lat_I(MinLat,MinLat+1,MaxLat)=', Lat_I([MinLat, MinLat+1, MaxLat])
 
     ! Add fields to the export state
     call add_fields(Grid, ExportState, IsFromEsmf=.true., iError=iError)
@@ -186,8 +201,14 @@ contains
           iError = ESMF_FAILURE; RETURN
        end select
 
+       ! Get dimension extents
+       MinLon = lbound(Ptr_II, dim=1)
+       MaxLon = ubound(Ptr_II, dim=1)
+       MinLat = lbound(Ptr_II, dim=2)
+       MaxLat = ubound(Ptr_II, dim=2)
+
        ! Add coordinate dependence
-       do j = 1, nLat; do i = 1, nLon
+       do j = MinLat, MaxLat; do i = MinLon, MaxLon
           Ptr_II(i,j) = Ptr_II(i,j) + CoordCoefTest &
                *abs(Lon_I(i))*(90-abs(Lat_I(j)))
        end do; end do
@@ -231,9 +252,16 @@ contains
        if(iError /= ESMF_SUCCESS) call my_error("ESMF_FieldGet for Hall")
 
        ! Update state by changing Hall conductivity
-       write(*,*)'IPE_grid_comp:run old Hall=', Ptr_II(nLon/2,nLat/2)
+       ! Get dimension extents
+       MinLon = lbound(Ptr_II, dim=1)
+       MaxLon = ubound(Ptr_II, dim=1)
+       MinLat = lbound(Ptr_II, dim=2)
+       MaxLat = ubound(Ptr_II, dim=2)
+       write(*,*)'IPE_grid_comp:run old Hall=', &
+            Ptr_II((MaxLon+MinLon)/2,(MaxLat+MinLat)/2)
        Ptr_II = Ptr_II + iCoupleFreq*dHallPerdtTest
-       write(*,*)'IPE_grid_comp:run new Hall=', Ptr_II(nLon/2,nLat/2)
+       write(*,*)'IPE_grid_comp:run new Hall=', &
+            Ptr_II((MaxLon+MinLon)/2,(MaxLat+MinLat)/2)
     end if
 
     iError = ESMF_SUCCESS
