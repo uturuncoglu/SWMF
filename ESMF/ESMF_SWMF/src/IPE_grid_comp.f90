@@ -2,10 +2,16 @@ module IPE_grid_comp
 
   ! ESMF Framework module
   use ESMF
+  use NUOPC
+
+  use NUOPC_Model, only: NUOPC_ModelGet
+  use NUOPC_Model, only: modelSS => SetServices
+  use NUOPC_Model, only: model_label_Advance => label_Advance
+  use NUOPC_Model, only: model_label_Finalize => label_Finalize
+
   use ESMFSWMF_variables, ONLY: add_fields, nVarEsmf, NameFieldEsmf_V, &
        DoTest, FieldTest_V, CoordCoefTest, dHallPerDtTest, iCoupleFreq, &
        write_log, write_error
-  ! Conversion to radians
 
   implicit none
   private
@@ -47,16 +53,65 @@ contains
     integer, intent(out):: iError
 
     !--------------------------------------------------------------------------
+    call NUOPC_CompDerive(gComp, modelSS, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompDerive')
     call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         userRoutine=my_init, rc=iError)
-    call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_RUN, &
-         userRoutine=my_run, rc=iError)
-    call ESMF_GridCompSetEntryPoint(gComp, ESMF_METHOD_FINALIZE, &
-         userRoutine=my_final, rc=iError)
+         userRoutine=my_init_p0, phase=0, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompSetEntryPoint')
+    call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
+         phaseLabelList=(/"IPDv01p1"/), userRoutine=my_init_advertise, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
+    call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
+         phaseLabelList=(/"IPDv01p3"/), userRoutine=my_init_realize, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
+          specRoutine=my_run, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
+    call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Finalize, &
+         specRoutine=my_final, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
 
   end subroutine set_services
   !============================================================================
-  subroutine my_init(gComp, ImportState, ExportState, Clock, iError)
+  subroutine my_init_p0(gComp, ImportState, ExportState, ExternalClock, iError)
+
+    type(ESMF_GridComp) :: gComp
+    type(ESMF_State) :: ImportState
+    type(ESMF_State) :: ExportState
+    type(ESMF_Clock) :: ExternalClock
+    integer, intent(out):: iError
+
+    call NUOPC_CompFilterPhaseMap(gComp, ESMF_METHOD_INITIALIZE, &
+         acceptStringList=(/"IPDv01p"/), rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompFilterPhaseMap')
+
+  end subroutine my_init_p0
+  !============================================================================
+  subroutine my_init_advertise(gComp, ImportState, ExportState, ExternalClock, iError)
+
+    type(ESMF_GridComp) :: gComp
+    type(ESMF_State) :: ImportState
+    type(ESMF_State) :: ExportState
+    type(ESMF_Clock) :: ExternalClock
+    integer, intent(out):: iError
+
+    integer :: n
+    !--------------------------------------------------------------------------
+    call write_log("RIM_grid_comp:init_advertise routine called")
+    iError = ESMF_FAILURE
+
+    do n = 1, nVarEsmf
+      call NUOPC_Advertise(ExportState, standardName=trim(NameFieldEsmf_V(n)), &
+           TransferOfferGeomObject='will provide', rc=iError)
+      if(iError /= ESMF_SUCCESS) call my_error('NUOPC_Advertise')
+    end do
+
+    iError = ESMF_SUCCESS
+    call write_log("RIM_grid_comp:init_advertise routine returned")
+
+  end subroutine my_init_advertise
+  !============================================================================
+  subroutine my_init_realize(gComp, ImportState, ExportState, Clock, iError)
 
     type(ESMF_GridComp):: gComp
     type(ESMF_State)   :: ImportState
@@ -71,7 +126,7 @@ contains
     integer:: iVar, i, j
     character(len=4):: NameField
     !--------------------------------------------------------------------------
-    call write_log("IPE_grid_comp init called")
+    call write_log("IPE_grid_comp init_realize called")
     iError = ESMF_FAILURE
 
     ! Create Lon-Lat grid where -180<=Lon<=180-dLon, -90<=Lat<=90
@@ -140,26 +195,28 @@ contains
     end do ! iVar
 
     iError = ESMF_SUCCESS
-    call write_log("IPE_grid_comp init returned")
+    call write_log("IPE_grid_comp init_realize returned")
     call ESMF_LogFlush()
 
-  end subroutine my_init
+  end subroutine my_init_realize
   !============================================================================
-  subroutine my_run(gComp, ImportState, ExportState, Clock, iError)
+  subroutine my_run(gComp, iError)
 
     type(ESMF_GridComp):: gComp
-    type(ESMF_State)   :: ImportState
-    type(ESMF_State)   :: ExportState
-    type(ESMF_Clock)   :: Clock
     integer, intent(out):: iError
 
     type(ESMF_Field):: Field
+    type(ESMF_State):: ExportState
 
     ! Access to the MHD data
     real(ESMF_KIND_R8), pointer :: Ptr_II(:,:)
     !--------------------------------------------------------------------------
     call write_log("IPE_grid_comp run called")
     iError = ESMF_FAILURE
+
+    ! Query component
+    call NUOPC_ModelGet(gcomp, exportState=ExportState, rc=iError)
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_ModelGet')    
 
     ! We should execute the ESMF code here and put the result into
     ! the fields of the ExportState
@@ -184,12 +241,9 @@ contains
 
   end subroutine my_run
   !============================================================================
-  subroutine my_final(gComp, ImportState, ExportState, Clock, iError)
+  subroutine my_final(gComp, iError)
 
     type(ESMF_GridComp) :: gComp
-    type(ESMF_State) :: ImportState
-    type(ESMF_State) :: ExportState
-    type(ESMF_Clock) :: Clock
     integer, intent(out):: iError
 
     !--------------------------------------------------------------------------

@@ -3,12 +3,16 @@ module ESMFSWMF_variables
   ! Various entities needed for the ESMF-SWMF coupling
 
   use ESMF
+  use NUOPC
   implicit none
 
   private
   public:: read_esmf_swmf_input, add_fields, write_log, write_error
 
   type(ESMF_Sync_Flag), public:: SyncFlag = ESMF_SYNC_BLOCKING
+
+  ! main configuration file
+  character (len=*), public, parameter :: NameParamFile = "ESMF_SWMF.input"
 
   ! named integer indexes for integer time arrays
   integer, public, parameter :: &
@@ -377,27 +381,38 @@ contains
     if(IsFromEsmf)then
        do iVar = 1, nVarEsmf
           NameField = NameFieldEsmf_V(iVar)
-          write(*,*) iProc,' Adding ESMF field=', NameField,' to ',trim(Name)
-          Field = ESMF_FieldCreate(Grid, arrayspec=ArraySpec, &
-               staggerloc=ESMF_STAGGERLOC_CORNER, name=NameField, rc=iError)
-          if(iError /= ESMF_SUCCESS) call my_error('ESMF_FieldCreate ' &
-               //NameField//' for '//trim(Name))
-
-          call ESMF_StateAdd(State, [Field], rc=iError)
-          if(iError /= ESMF_SUCCESS) call my_error( &
-               'ESMF_StateAdd '//NameField//' to '//trim(Name))
+          if (NUOPC_IsConnected(State, fieldName=trim(NameField))) then
+             write(*,*) iProc,' Adding ESMF field=', NameField,' to ',trim(Name)
+             Field = ESMF_FieldCreate(Grid, arrayspec=ArraySpec, &
+                  staggerloc=ESMF_STAGGERLOC_CORNER, name=NameField, rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error('ESMF_FieldCreate ' &
+                  //NameField//' for '//trim(Name))
+             call NUOPC_Realize(State, field=Field, rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error( &
+                  'NUOPC_Realize '//NameField//' to '//trim(Name))
+          else
+             call ESMF_StateRemove(State, (/ trim(NameField) /), rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error( &
+                  'ESMF_StateRemove '//NameField)
+          end if
        end do
     else
        do iVar = 1, nVarSwmf
           NameField = NameFieldSwmf_V(iVar)
-          write(*,*)'Adding SWMF field=', NameField,' to ',trim(Name)
-          Field = ESMF_FieldCreate(Grid, typekind=ESMF_TYPEKIND_R8, &
-               staggerloc=ESMF_STAGGERLOC_CORNER, name=NameField, rc=iError)
-          if(iError /= ESMF_SUCCESS) call my_error('ESMF_FieldCreate ' &
-               //trim(NameField)//' for '//trim(Name))
-          call ESMF_StateAdd(State, [Field], rc=iError)
-          if(iError /= ESMF_SUCCESS) call my_error('ESMF_StateAdd ' &
-               //trim(NameField)//' to '//trim(Name))
+          if (NUOPC_IsConnected(State, fieldName=trim(NameField))) then
+             write(*,*)'Adding SWMF field=', NameField,' to ',trim(Name)
+             Field = ESMF_FieldCreate(Grid, typekind=ESMF_TYPEKIND_R8, &
+                  staggerloc=ESMF_STAGGERLOC_CORNER, name=NameField, rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error('ESMF_FieldCreate ' &
+                  //trim(NameField)//' for '//trim(Name))
+             call NUOPC_Realize(State, field=Field, rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error( &
+                  'NUOPC_Realize '//NameField//' to '//trim(Name))
+          else
+             call ESMF_StateRemove(State, (/ trim(NameField) /), rc=iError)
+             if(iError /= ESMF_SUCCESS) call my_error( &
+                  'ESMF_StateRemove '//NameField)
+          end if
        end do
     endif
     iError = ESMF_SUCCESS
