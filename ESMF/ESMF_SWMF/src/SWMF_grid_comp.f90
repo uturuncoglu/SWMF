@@ -14,7 +14,7 @@ module SWMF_grid_comp
   use NUOPC_Model, only: model_label_Finalize => label_Finalize
 
   use ESMFSWMF_variables, ONLY: &
-       DoRunSwmf, DoBlockAllSwmf, NameSwmfComp, &
+       NameSwmfComp, &
        Year_, Month_, Day_, Hour_, Minute_, Second_, MilliSec_, &
        write_log, write_error
 
@@ -105,7 +105,7 @@ contains
     ! Obtain the start time from the clock
     call ESMF_ClockGet(externalclock, startTime=StartTime, &
          currSimTime=SimTime, runDuration=RunDuration, rc=iError)
-    if(iError /= ESMF_SUCCESS) call	my_error('ESMF_ClockGet')
+    if(iError /= ESMF_SUCCESS) call my_error('ESMF_ClockGet')
 
     call ESMF_TimeGet(StartTime,   &
          yy=iStartTime_I(Year_),   &
@@ -181,16 +181,9 @@ contains
 
     call write_log("SWMF_run routine called!")
     write(*,*)'SWMF_run starts  with tCouple =',tCouple
-    if(.not.DoRunSwmf)then
-       ! Pretend that SWMF reached the coupling time
-       tSimSwmf = tCouple
-       iError = 0
-    elseif(DoBlockAllSwmf)then
-       call SWMF_run('**', tCouple, tSimSwmf, DoStop, iError)
-    else
-       call SWMF_run(NameSwmfComp, tCouple, tSimSwmf, DoStop, iError)
-    end if
+    call SWMF_run('**', tCouple, tSimSwmf, DoStop, iError)
     write(*,*)'SWMF_run returns with tSimSwmf=', tSimSwmf
+
     call write_log("SWMF_run routine returned!")
     if(iError /= 0)call my_error('SWMF_run')
 

@@ -13,7 +13,7 @@ module RIM_grid_comp
   use NUOPC_Model, only: model_label_Finalize => label_Finalize
 
   use ESMFSWMF_variables, ONLY: &
-       nProcSwmfComp, NameFieldEsmf_V, nVarEsmf, &
+       NameFieldEsmf_V, nVarEsmf, &
        add_fields, write_log, write_error, &
        DoTest, FieldTest_V, CoordCoefTest, dHallPerDtTest
 
@@ -149,9 +149,11 @@ contains
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 1')
     write(*,*)'ESMF_GridComp size(Lon_I)=', size(Lon_I)
 
+    nullify(Lat_I)    
     call ESMF_GridGetCoord(Grid, CoordDim=2, &
          staggerLoc=ESMF_STAGGERLOC_CORNER, farrayPtr=Lat_I, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 2')
+    write(*,*)'ESMF_GridComp size(Lat_I)=', size(Lat_I)
 
     ! Uniform longitude grid from -180 to 180 (to match IPE)
     MinLon = lbound(Lon_I, dim=1)
