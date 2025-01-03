@@ -23,7 +23,6 @@ module ESMF_grid_comp
   use SWMF_grid_comp, ONLY: swmf_set_services    => set_services
   use IPE_grid_comp,  ONLY: ipe_set_services     => set_services
   use RIM_grid_comp,  ONLY: rim_set_services     => set_services
-!  use IPERIM_coupler, ONLY: coupler_set_services => set_services
 
   implicit none
   private
