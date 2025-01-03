@@ -16,6 +16,8 @@ module ESMF_grid_comp
 
   ! Various variables
   use ESMFSWMF_variables, ONLY: write_log, write_error, NameParamFile
+  use ESMFSWMF_variables, ONLY: iProcRootSwmf, iProcRootEsmf, iProcLastEsmf, iProcLastSwmf, &
+       iProc0SwmfComp, iProcLastSwmfComp, nProcSwmfComp
 
   ! User Component registration routines
   use SWMF_grid_comp, ONLY: swmf_set_services    => set_services
@@ -152,18 +154,21 @@ contains
        if (trim(model) == 'swmf') then
           call NUOPC_DriverAddComp(gComp, trim(prefix), &
                swmf_set_services, petlist=petList, comp=SwmfComp, rc=iError)
+               !swmf_set_services, petlist=[ (i, i=iProcRootSwmf, iProcLastSwmf) ], comp=SwmfComp, rc=iError)
           if(iError /= ESMF_SUCCESS)call my_error('NUOPC_DriverAddComp - SWMF')
        end if
        ! IPE
        if (trim(model) == 'ipe') then
           call NUOPC_DriverAddComp(gComp, trim(prefix), &
                ipe_set_services, petlist=petList, comp=IpeComp, rc=iError)
+               !ipe_set_services, petlist= [ (i, i=iProcRootEsmf, iProcLastEsmf) ], comp=IpeComp, rc=iError)
           if(iError /= ESMF_SUCCESS)call my_error('NUOPC_DriverAddComp - IPE')
        end if
        ! RIM
        if (trim(model) == 'rim') then
           call NUOPC_DriverAddComp(gComp, trim(prefix), &
                rim_set_services, petlist=petList, comp=RimComp, rc=iError)
+               !rim_set_services, petlist=[ (i, i=iProc0SwmfComp, iProcLastSwmfComp) ], comp=RimComp, rc=iError)
           if(iError /= ESMF_SUCCESS)call my_error('NUOPC_DriverAddComp - RIM')
        end if
        ! Clear memory

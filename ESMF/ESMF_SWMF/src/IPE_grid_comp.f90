@@ -215,7 +215,6 @@ contains
 
     call ESMF_TimeIntervalGet(TimeStep, s=iCoupleFreq, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_TimeIntervalGet')
-    print*, "iCoupleFreq = ", iCoupleFreq
 
     do iVar = 1, nVarEsmf
        ! Get pointers to the variables in the export state
