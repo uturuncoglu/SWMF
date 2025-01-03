@@ -78,7 +78,7 @@ F			DoCoupleOnTime
 #BEGIN_COMP GM ---------------------------------------------------------------
 
 #UPDATE
-fast			TypeUpdate
+slow			TypeUpdate
 
 #INCLUDE
 GM/restartIN/restart.H
