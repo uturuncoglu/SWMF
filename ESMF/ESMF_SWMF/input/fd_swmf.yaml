@@ -4,7 +4,7 @@
    description: Community-based dictionary for shared coupling fields
    entries:
      - standard_name: Hall
-       alias: high_all_conductance 
+       alias: hall_conductance 
        canonical_units: mho
        description: IPE export 
      - standard_name: Ped
