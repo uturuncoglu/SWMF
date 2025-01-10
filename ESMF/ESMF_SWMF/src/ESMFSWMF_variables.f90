@@ -33,13 +33,8 @@ module ESMFSWMF_variables
        [2000, 3, 21, 10, 45, 0, 0]                     !   with defaults
   real(ESMF_KIND_R8), public:: TimeSimulation = 0.0
 
-  ! Root processor
-  integer, public :: iProc=0
-
-  ! SWMF runs on processor ranks iProcRootSwmf to iProcLastSwmf
-  ! ESMF runs on processor ranks iProcRootEsmf to iProcLastEsmf
-  integer, public :: iProcRootSwmf=1, iProcLastSwmf=-1, nProcSwmf
-  integer, public :: iProcRootEsmf=0, iProcLastEsmf=0
+  ! Root processor and number of processors on global VM
+  integer, public :: iProc=0, nProc=1
 
   ! SWMF component to couple with
   character(len=2), public :: NameSwmfComp = 'IE'
@@ -47,7 +42,7 @@ module ESMFSWMF_variables
   ! The ESMF communicates with SwmfComp within the SWMF.
   ! The processors used by SwmfComp are obtained from the PARAM.in file.
   ! These indexes are relative to the SWMF MPI communicator
-  integer, public:: iProc0SwmfComp=0, iProcLastSwmfComp=0, nProcSwmfComp=1
+  integer, public:: iProc0SwmfComp=0, iProcLastSwmfComp=0
 
   ! Testing
   logical, public, parameter:: DoTest = .true.
@@ -151,7 +146,7 @@ contains
     call ESMF_ConfigDestroy(Config, rc=iError)
     if(iError /= ESMF_SUCCESS) RETURN
 
-    call read_swmf_layout(iProc, iError)
+    call read_swmf_layout(iError)
     if(iError /= ESMF_SUCCESS) RETURN
 
     iError = ESMF_SUCCESS
@@ -159,13 +154,12 @@ contains
 
   end subroutine read_esmf_swmf_input
   !============================================================================
-  subroutine read_swmf_layout(iProc, iError)
+  subroutine read_swmf_layout(iError)
 
-    ! Get the root processor for the SWMF component to be coupled with
+    ! Get the processors of the SWMF component to be coupled with
     ! from the PARAM.in file
 
-    integer, intent(in)  :: iProc  ! rank of processor
-    integer, intent(out) :: iError     ! error code
+    integer, intent(out) :: iError ! error code
 
     integer :: iUnit
     character(len=100) :: String
@@ -200,20 +194,6 @@ contains
                   ' from line=',trim(String),' in PARAM.in'
              iError = ESMF_FAILURE; RETURN
           end if
-          if(iProc0SwmfComp < 0) then
-             ! Negative value is relative to the end
-             iProc0SwmfComp = max(0, iProc0SwmfComp + nProcSwmf)
-          else
-             ! Positive value is limited by nProcSwmf
-             iProc0SwmfComp = min(0, nProcSwmf - 1)
-          end if
-          if(iProcLastSwmfComp < 0) then
-             iProcLastSwmfComp = iProcLastSwmfComp + nProcSwmf
-          else
-             iProcLastSwmfComp = min(iProcLastSwmfComp, nProcSwmf - 1)
-          end if
-          ! Number of processors used by SwmfComp
-          nProcSwmfComp = iProcLastSwmfComp - iProc0SwmfComp + 1
           EXIT READLAYOUT
        end if
        if(String == '')then
@@ -224,9 +204,8 @@ contains
     end do READLAYOUT
     close(iUnit)
 
-    if(iProc == 0)write(*,*)'ESMF_SWMF: '//NameSwmfComp// &
-         ' Root, Last, nProc=', &
-         iProc0SwmfComp, iProcLastSwmfComp, nProcSwmfComp
+    if(iProc==0) write(*,*)'ESMF_SWMF: '//NameSwmfComp//' Root, Last=', &
+         iProc0SwmfComp, iProcLastSwmfComp
 
   end subroutine read_swmf_layout
   !============================================================================
