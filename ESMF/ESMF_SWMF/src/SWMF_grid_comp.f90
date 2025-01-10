@@ -10,7 +10,7 @@ module SWMF_grid_comp
 
   use NUOPC_Model, only: NUOPC_ModelGet
   use NUOPC_Model, only: modelSS => SetServices
-  use NUOPC_Model, only: model_label_Advance => label_Advance  
+  use NUOPC_Model, only: model_label_Advance => label_Advance
   use NUOPC_Model, only: model_label_Finalize => label_Finalize
 
   use ESMFSWMF_variables, ONLY: &
@@ -47,7 +47,7 @@ contains
          userRoutine=my_init_p0, phase=0, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompSetEntryPoint')
     call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         phaseLabelList=(/"IPDv01p1"/), userRoutine=my_init, rc=iError)    
+         phaseLabelList=["IPDv01p1"], userRoutine=my_init, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
     call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
           specRoutine=my_run, rc=iError)
@@ -66,8 +66,9 @@ contains
     type(ESMF_Clock) :: ExternalClock
     integer, intent(out):: iError
 
+    !--------------------------------------------------------------------------
     call NUOPC_CompFilterPhaseMap(gComp, ESMF_METHOD_INITIALIZE, &
-         acceptStringList=(/"IPDv01p"/), rc=iError)
+         acceptStringList=["IPDv01p"], rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompFilterPhaseMap')
 
   end subroutine my_init_p0
@@ -203,6 +204,8 @@ contains
     call SWMF_finalize(iError)
     call write_log("SWMF_finalize routine returned")
     if(iError /= 0) call my_error("SWMF_finalize FAILED")
+
+    iError = ESMF_SUCCESS
 
   end subroutine my_final
   !============================================================================

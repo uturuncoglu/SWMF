@@ -12,7 +12,7 @@ module ESMF_grid_comp
       Driver_label_SetModelServices => label_SetModelServices, &
       Driver_label_SetRunSequence   => label_SetRunSequence, &
       Driver_label_SetRunClock      => label_SetRunClock
-  use NUOPC_Driver, only: NUOPC_DriverAddComp    
+  use NUOPC_Driver, only: NUOPC_DriverAddComp
 
   ! Various variables
   use ESMFSWMF_variables, ONLY: write_log, write_error, NameParamFile
@@ -98,7 +98,7 @@ contains
     integer, allocatable :: petList(:)
     character(len=32) :: model, prefix
     character(len=32), allocatable :: compLabels(:)
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
     call write_log("ESMF_gric_comp set_model_services called")
     iError = ESMF_FAILURE
 

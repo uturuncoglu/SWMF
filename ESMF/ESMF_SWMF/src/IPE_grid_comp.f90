@@ -64,10 +64,10 @@ contains
          userRoutine=my_init_p0, phase=0, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompSetEntryPoint')
     call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         phaseLabelList=(/"IPDv01p1"/), userRoutine=my_init_advertise, rc=iError)
+         phaseLabelList=["IPDv01p1"], userRoutine=my_init_advertise, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
     call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         phaseLabelList=(/"IPDv01p3"/), userRoutine=my_init_realize, rc=iError)
+         phaseLabelList=["IPDv01p3"], userRoutine=my_init_realize, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
     call NUOPC_CompSpecialize(gcomp, specLabel=model_label_DataInitialize, &
          specRoutine=my_data_init, rc=iError)
@@ -89,8 +89,9 @@ contains
     type(ESMF_Clock) :: ExternalClock
     integer, intent(out):: iError
 
+    !--------------------------------------------------------------------------
     call NUOPC_CompFilterPhaseMap(gComp, ESMF_METHOD_INITIALIZE, &
-         acceptStringList=(/"IPDv01p"/), rc=iError)
+         acceptStringList=["IPDv01p"], rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompFilterPhaseMap')
 
   end subroutine my_init_p0
@@ -275,7 +276,7 @@ contains
 
     ! Query component
     call NUOPC_ModelGet(gcomp, exportState=ExportState, rc=iError)
-    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_ModelGet')    
+    if(iError /= ESMF_SUCCESS) call my_error('NUOPC_ModelGet')
 
     ! We should execute the ESMF code here and put the result into
     ! the fields of the ExportState
@@ -315,6 +316,8 @@ contains
     !--------------------------------------------------------------------------
     call write_log("IPE_grid_comp finalize called")
     call write_log("IPE_grid_comp finalize returned")
+
+    iError = ESMF_SUCCESS
 
   end subroutine my_final
   !============================================================================

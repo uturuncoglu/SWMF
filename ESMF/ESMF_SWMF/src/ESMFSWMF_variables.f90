@@ -253,7 +253,7 @@ contains
              if(iError /= ESMF_SUCCESS) call my_error( &
                   'NUOPC_Realize '//NameField//' to '//trim(Name))
           else
-             call ESMF_StateRemove(State, (/ trim(NameField) /), rc=iError)
+             call ESMF_StateRemove(State, [ trim(NameField) ], rc=iError)
              if(iError /= ESMF_SUCCESS) call my_error( &
                   'ESMF_StateRemove '//NameField)
           end if
@@ -271,7 +271,7 @@ contains
              if(iError /= ESMF_SUCCESS) call my_error( &
                   'NUOPC_Realize '//NameField//' to '//trim(Name))
           else
-             call ESMF_StateRemove(State, (/ trim(NameField) /), rc=iError)
+             call ESMF_StateRemove(State, [ trim(NameField) ], rc=iError)
              if(iError /= ESMF_SUCCESS) call my_error( &
                   'ESMF_StateRemove '//NameField)
           end if

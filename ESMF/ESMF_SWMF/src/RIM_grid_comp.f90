@@ -53,10 +53,10 @@ contains
          userRoutine=my_init_p0, phase=0, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('ESMF_GridCompSetEntryPoint')
     call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         phaseLabelList=(/"IPDv01p1"/), userRoutine=my_init_advertise, rc=iError)
+         phaseLabelList=["IPDv01p1"], userRoutine=my_init_advertise, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
     call NUOPC_CompSetEntryPoint(gComp, ESMF_METHOD_INITIALIZE, &
-         phaseLabelList=(/"IPDv01p3"/), userRoutine=my_init_realize, rc=iError)
+         phaseLabelList=["IPDv01p3"], userRoutine=my_init_realize, rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompSetEntryPoint')
     call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
           specRoutine=my_run, rc=iError)
@@ -75,8 +75,9 @@ contains
     type(ESMF_Clock) :: ExternalClock
     integer, intent(out):: iError
 
+    !--------------------------------------------------------------------------
     call NUOPC_CompFilterPhaseMap(gComp, ESMF_METHOD_INITIALIZE, &
-         acceptStringList=(/"IPDv01p"/), rc=iError)
+         acceptStringList=["IPDv01p"], rc=iError)
     if(iError /= ESMF_SUCCESS) call my_error('NUOPC_CompFilterPhaseMap')
 
   end subroutine my_init_p0
@@ -149,7 +150,7 @@ contains
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 1')
     write(*,*)'ESMF_GridComp size(Lon_I)=', size(Lon_I)
 
-    nullify(Lat_I)    
+    nullify(Lat_I)
     call ESMF_GridGetCoord(Grid, CoordDim=2, &
          staggerLoc=ESMF_STAGGERLOC_CORNER, farrayPtr=Lat_I, rc=iError)
     if(iError /= ESMF_SUCCESS)call my_error('ESMF_GridGetCoord 2')
@@ -158,7 +159,7 @@ contains
     ! Uniform longitude grid from -180 to 180 (to match IPE)
     MinLon = lbound(Lon_I, dim=1)
     MaxLon = ubound(Lon_I, dim=1)
-    write(*,'(a,2i4)')'RIM grid: Lon_I Min, Max=', MinLon, MaxLon 
+    write(*,'(a,2i4)')'RIM grid: Lon_I Min, Max=', MinLon, MaxLon
     do i = MinLon, MaxLon
        Lon_I(i) = (i-1)*(360.0/(nLon-1)) - 180
     end do
@@ -166,7 +167,7 @@ contains
     ! Uniform latitude grid
     MinLat = lbound(Lat_I, dim=1)
     MaxLat = ubound(Lat_I, dim=1)
-    write(*,'(a,2i4)')'RIM grid: Lat_I Min, Max=', MinLat, MaxLat 
+    write(*,'(a,2i4)')'RIM grid: Lat_I Min, Max=', MinLat, MaxLat
     do j = MinLat, MaxLat
        Lat_I(j) = (j-1)*(180./(nLat-1)) - 90
     end do
@@ -280,6 +281,8 @@ contains
     call write_log("RIM_finalize routine called")
 
     call write_log("RIM_finalize routine returned")
+
+    iError = ESMF_SUCCESS
 
   end subroutine my_final
   !============================================================================
