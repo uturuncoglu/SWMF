@@ -15,7 +15,7 @@ program ESMF_driver
   use ESMF_grid_comp, ONLY: ESMF_set_services
 
   ! Various variables
-  use ESMFSWMF_variables, ONLY: NameParamFile, &
+  use ESMFSWMF_variables, ONLY: NameParamFile, iProc, nProc, &
        Year_, Month_, Day_, Hour_, Minute_, Second_, MilliSec_, &
        iStartTime_I, iFinishTime_I, TimeSimulation, &
        read_esmf_swmf_input, write_log, write_error
@@ -56,6 +56,9 @@ program ESMF_driver
   ! Get the default VM which contains all PEs this job was started on.
   call ESMF_VMGetGlobal(defaultVM, rc=iError)
   if(iError /= ESMF_SUCCESS) call my_error('ESMF_VMGetGlobal failed')
+
+  call ESMF_VMGet(defaultVM, petcount=nProc, localpet=iProc, rc=iError)
+  if(iError /= ESMF_SUCCESS) call my_error('ESMF_VMGet failed')
 
   ! Create section
 
